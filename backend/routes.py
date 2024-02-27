@@ -51,3 +51,62 @@ def parse_json(data):
 ######################################################################
 # INSERT CODE HERE
 ######################################################################
+@app.route("/health")
+def health():
+    return jsonify(dict(status="OK")), 200
+
+
+@app.route("/count")
+def count():
+    """return length of data"""
+    count = db.songs.count_documents({})
+
+    return {"count": count}, 200
+
+
+@app.route("/song", methods=["GET"])
+def songs():
+    list_of_songs = db.songs.find({})
+    return {"songs": parse_json(list_of_songs)}, 200
+
+
+@app.route("/song/<int:id>", methods=["GET"])
+def get_song_by_id(id):
+    song = db.songs.find_one({"id": id})
+    if not song:
+            return {"message": f"song with id {id} not found"}, 404
+    return {"song": parse_json(song)}, 200
+
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    new_song = request.json
+    if not new_song:
+        return {"message": "Invalid input parameter"}, 422
+    song = db.songs.find_one({"id": new_song.get("id")})
+    if song:
+        return {"Message": f"song with id {new_song.get('id')} already present"}, 302
+    insert_result = db.songs.insert_one(parse_json(new_song))
+    return {"inserted id": parse_json(insert_result.inserted_id)}, 201
+
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    new_song = request.json
+    if not new_song:
+        return {"message": "Invalid input parameter"}, 422
+    song = db.songs.find_one({"id": id})
+    if not song:
+        return {"message": "song not found"}, 404
+    update_result = db.songs.update_one({"id": id}, {"$set": new_song})
+    if not update_result.modified_count:
+        return {"message":"song found, but nothing updated"}, 200
+    return parse_json(db.songs.find_one({"id": id})), 201
+
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    delete_result = db.songs.delete_one({"id": id})
+    if not delete_result.deleted_count:
+        return {"message": "song not found"}, 404
+    return {}, 204
